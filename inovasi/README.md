@@ -34,7 +34,7 @@ Sebelum menjalankan skrip, pastikan komputer anda mempunyai perisian berikut:
 3.  Simpan fail tersebut sebagai **`scrape_idme.py`**.
 
 **⚠️ PENTING: Sebelum simpan, anda perlu ubah 2 perkara dalam kod:**
-1.  **Senarai URL (`direct_urls`):** Anda perlu login idMe secara manual dahulu, buka paparan markah setiap kelas yang ingin dianalisis, salin URL dari browser, dan tampal ke dalam senarai `direct_urls` dalam kod di bawah.
+1.  **Senarai URL (`direct_urls`):** Anda perlu login idMe secara manual dahulu, buka paparan markah setiap kelas yang ingin dianalisis, salin URL dari browser, dan tampal ke dalam senarai `direct_urls` dalam kod di bawah. Cara mendapat senarai url, pergi Laporan>Peperiksaan Dalaman Sekolah>Kelas seperti dalam gambar, right klik butang pensel untuk setiap kelas, dapatkan 
 2.  **Username & Password:** Anda boleh set sebagai *Environment Variable* (lebih selamat) atau gantikan `os.getenv(...)` terus dengan nombor IC dan kata laluan anda dalam kod (jika guna di komputer peribadi).
 
 ```python

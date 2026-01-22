@@ -4,7 +4,7 @@
 
 Dokumen ini menyediakan langkah-langkah terperinci untuk memuat turun data mentah dari sistem idMe (Modul SPPB) dan membina **Analisis Papan Pemuka (Dashboard Analysis)** automatik menggunakan Google Sheets.
 
-Sistem ini membolehkan analisis dibuat untuk **Keseluruhan Daerah (PPD)** atau diperincikan mengikut **Setiap Sekolah** menggunakan satu fail sahaja.
+Sistem ini membolehkan analisis dibuat untuk **Keseluruhan Daerah (PPD)** atau diperincikan mengikut **Setiap Sekolah** menggunakan satu fail sahaja. Dengan syarat perlu tunggu pihak idMe siap memproses data.
 
 ---
 

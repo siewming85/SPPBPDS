@@ -120,4 +120,4 @@ Formula GP (tidak termasuk TH):
 ## Kredit
 Projek ini direka untuk memudahkan pengurusan data peperiksaan dalaman sekolah menggunakan eksport standard sistem idMe.
 
-*Tarikh Kemaskini: Januari 2025*
+*Tarikh Kemaskini: Januari 2026*

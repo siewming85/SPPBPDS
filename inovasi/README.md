@@ -1,8 +1,4 @@
-Berikut adalah tambahan **Bahagian A (Kaedah Inovasi)** untuk fail **README.md** anda.
-
 Bahagian ini menggantikan kaedah manual "Download Analisis" yang sering memakan masa (status "Sedang Diproses" yang lama). Skrip ini akan menyedut (scrape) data terus dari paparan markah kelas.
-
-Anda boleh meletakkan ini di bahagian paling atas fail README atau sebagai alternatif kepada Bahagian A yang asal.
 
 ***
 

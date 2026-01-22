@@ -252,13 +252,77 @@ driver.quit()
 4.  Browser Chrome akan terbuka secara automatik dan mula melawat setiap URL kelas yang anda tetapkan. **Jangan tutup browser tersebut.**
 5.  Setelah selesai, fail **`all_student_results.csv`** akan terhasil dalam folder yang sama.
 
-### Langkah Seterusnya
+***
 
-Gunakan fail **`all_student_results.csv`** ini sebagai sumber data untuk **FASA 1** dalam panduan dashboard di bawah. Copy isinya ke tab **`Data`** di Google Sheet.
+### Langkah Tambahan: Dapatkan URL Kelas Secara Automatik
 
-*Nota: Struktur lajur mungkin sedikit berbeza dengan fail `fik_...csv` asal (urutan subjek). Pastikan anda menyemak semula Lajur Subjek dalam "Fasa 3: Pemetaan Lajur" jika menggunakan kaedah ini.*
+Daripada menyalin URL kelas satu demi satu secara manual, gunakan kaedah pantas ini:
 
+1.  Masuk ke **idMe > Pengurusan Pentaksiran**.
+2.  Pergi ke menu **Analisis > Peperiksaan Dalaman Sekolah > Kelas**.
+3.  Pilih **Sesi Persekolahan** dan **Jenis Pentaksiran** yang dikehendaki.
+4.  Pastikan senarai kelas telah dipaparkan di skrin.
+5.  Klik kanan di mana-mana pada halaman tersebut, pilih **Inspect** (atau tekan `F12`), dan klik tab **Console**.
+6.  Salin dan tampal kod JavaScript di bawah ke dalam Console, kemudian tekan **Enter**:
 
+```javascript
+// Kod untuk menyedut ID kelas dan menukar kepada URL Markah
+(function() {
+    // 1. Cari semua link yang menuju ke laporan kelas
+    // Link asal biasanya: .../laporan/peperiksaan/laporan-kelas/12345
+    const links = Array.from(document.querySelectorAll('a[href*="/laporan-kelas/"]'));
+
+    if (links.length === 0) {
+        console.log("⚠️ Tiada senarai kelas dijumpai. Pastikan anda berada di halaman 'Analisis > Kelas' dan senarai kelas sudah terpapar.");
+        return;
+    }
+
+    // 2. Proses URL: Ambil ID dan tukar format
+    const targetUrls = links.map(link => {
+        // Ambil nombor ID di hujung URL
+        const classId = link.href.split('/').pop();
+        // Return format URL untuk input markah (yang diperlukan Python)
+        return `https://moeissppb.moe.gov.my/pengurusan/peperiksaan/markah/${classId}`;
+    });
+
+    // 3. Buang URL pendua (jika ada) dan format sebagai List Python
+    const uniqueUrls = [...new Set(targetUrls)];
+    
+    console.clear();
+    console.log("%c✅ BERJAYA! Salin senarai di bawah dan tampal ke dalam 'scrape_idme.py':", "color: green; font-size: 14px; font-weight: bold;");
+    console.log("");
+    // Paparkan dalam format yang boleh terus copy-paste ke Python
+    console.log(JSON.stringify(uniqueUrls, null, 4));
+})();
+```
+
+7.  Console akan memaparkan senarai URL seperti ini:
+    ```json
+    [
+        "https://moeissppb.moe.gov.my/pengurusan/peperiksaan/markah/172945",
+        "https://moeissppb.moe.gov.my/pengurusan/peperiksaan/markah/184074",
+        "..."
+    ]
+    ```
+8.  **Salin (Copy)** keseluruhan senarai tersebut (termasuk kurungan `[` dan `]`).
+9.  Buka fail **`scrape_idme.py`** anda, dan gantikan bahagian `direct_urls = [...]` dengan senarai yang anda baru salin.
+
+---
+
+### Contoh Kemaskini dalam `scrape_idme.py`
+
+```python
+# ... (kod atas)
+
+# PASTE URL YANG ANDA COPY DARI CONSOLE DI SINI
+direct_urls = [
+    "https://moeissppb.moe.gov.my/pengurusan/peperiksaan/markah/172945",
+    "https://moeissppb.moe.gov.my/pengurusan/peperiksaan/markah/184074",
+    "https://moeissppb.moe.gov.my/pengurusan/peperiksaan/markah/184070"
+]
+
+# ... (kod bawah)
+```
 
 Kaedah ini jauh lebih **"advance" dan automatik** berbanding kaedah formula Excel biasa. Anda tidak perlu menyalin formula yang panjang atau risau tentang formula rosak. Skrip akan membaca data dari `all_student_results.csv` dan menjana dashboard sepenuhnya.
 

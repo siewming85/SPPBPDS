@@ -117,6 +117,107 @@ Formula GP (tidak termasuk TH):
 
 ---
 
+Berikut adalah tambahan kepada fail **README.md** untuk memasukkan **Analisis Layak Mendapat Sijil (LMS)** dan **Analisis Silang BM & Sejarah**.
+
+Anda boleh menyambung teks ini di bahagian bawah fail README.md yang sebelumnya, atau letakkan di bahagian baharu.
+
+***
+
+# Bahagian C: Analisis Layak Sijil (LMS) & Silang BM-Sejarah
+
+Bahagian ini membolehkan anda melihat berapa ramai murid yang Layak Sijil (Lulus kedua-dua BM & Sejarah) serta analisis murid yang gagal salah satu subjek teras tersebut.
+
+Data ini juga akan berubah mengikut pilihan sekolah di dropdown **B1**.
+
+### FASA 1: Menambah Logik Lulus/Gagal (Helper Columns)
+
+Untuk memudahkan pengiraan silang (Cross-tabulation), kita akan tambah dua lajur bantuan di hujung tab **`Data`** untuk menentukan status Lulus/Gagal bagi setiap murid secara automatik.
+
+*Nota: Berdasarkan panduan sebelum ini, Gred BM berada di lajur **X** dan Sejarah di lajur **AX**.*
+
+1.  Pergi ke tab **`Data`**.
+2.  Pergi ke lajur kosong di hujung data (contohnya Lajur **BG** dan **BH**).
+3.  **Lajur Status BM (BG):**
+    *   Di sel **BG1**, taip tajuk: `STATUS BM`
+    *   Di sel **BG2**, masukkan formula ini (menganggap Lulus ialah A hingga E):
+        ```excel
+        =ARRAYFORMULA(IF(C2:C="", "", IF(REGEXMATCH(X2:X, "A|B|C|D|E"), "LULUS", "GAGAL")))
+        ```
+4.  **Lajur Status SEJ (BH):**
+    *   Di sel **BH1**, taip tajuk: `STATUS SEJ`
+    *   Di sel **BH2**, masukkan formula ini:
+        ```excel
+        =ARRAYFORMULA(IF(C2:C="", "", IF(REGEXMATCH(AX2:AX, "A|B|C|D|E"), "LULUS", "GAGAL")))
+        ```
+    *(Formula ini akan automatik mengisi ke bawah untuk semua murid. "GAGAL" merangkumi Gred G dan TH).*
+
+---
+
+### FASA 2: Membina Jadual Analisis LMS (Tab Analisis)
+
+1.  Pergi ke tab **`Analisis`**.
+2.  Pilih kawasan kosong (contohnya bermula di sel **H1** atau di bawah jadual subjek).
+3.  Bina struktur jadual seperti berikut:
+
+| Sel | Teks / Label |
+| :--- | :--- |
+| **E26** | **KATEGORI PENCAPAIAN (BM & SEJ)** |
+| **E27** | Layak Sijil (Lulus BM & Lulus SEJ) |
+| **E28** | Lulus BM, Gagal Sejarah |
+| **E29** | Gagal BM, Lulus Sejarah |
+| **E30** | Gagal Kedua-dua Subjek |
+| **E31** | **JUMLAH CALON** |
+
+### FASA 3: Memasukkan Formula Pengiraan
+
+Masukkan formula berikut di sebelah label yang anda bina tadi (Lajur F). Formula ini akan membaca Dropdown di **B1** (Semua atau Sekolah) dan Helper Column di tab Data.
+
+*Pastikan anda menukar `BG` (Status BM) dan `BH` (Status Sej) jika anda meletakkannya di lajur berbeza.*
+
+1.  **Layak Sijil (Lulus BM & Lulus SEJ) - Sel F27:**
+    ```excel
+    =COUNTIFS(Data!$C:$C, IF($B$1="SEMUA", "*", $B$1), Data!$BG:$BG, "LULUS", Data!$BH:$BH, "LULUS")
+    ```
+
+2.  **Lulus BM, Gagal Sejarah - Sel F28:**
+    ```excel
+    =COUNTIFS(Data!$C:$C, IF($B$1="SEMUA", "*", $B$1), Data!$BG:$BG, "LULUS", Data!$BH:$BH, "GAGAL")
+    ```
+
+3.  **Gagal BM, Lulus Sejarah - Sel F29:**
+    ```excel
+    =COUNTIFS(Data!$C:$C, IF($B$1="SEMUA", "*", $B$1), Data!$BG:$BG, "GAGAL", Data!$BH:$BH, "LULUS")
+    ```
+
+4.  **Gagal Kedua-dua Subjek - Sel F30:**
+    ```excel
+    =COUNTIFS(Data!$C:$C, IF($B$1="SEMUA", "*", $B$1), Data!$BG:$BG, "GAGAL", Data!$BH:$BH, "GAGAL")
+    ```
+
+5.  **Jumlah Calon (Semakan) - Sel F31:**
+    ```excel
+    =SUM(F27:F30)
+    ```
+
+### FASA 4: Menambah Peratusan (Optional)
+
+Untuk melihat peratusan LMS, tambah formula ini di lajur sebelah (Lajur G):
+
+1.  **Peratus Layak Sijil (Sel G27):**
+    ```excel
+    =IF($F$31=0, 0, F27/$F$31)
+    ```
+    *(Tarik formula ke bawah sehingga baris G30 dan tukar format kepada %)*
+
+---
+
+### Rumusan Output
+
+Dengan langkah di atas, Dashboard anda kini mempunyai dua bahagian:
+1.  **Jadual Atas:** Analisis GP dan Gred mengikut Subjek.
+2.  **Jadual Bawah:** Analisis Kualiti (LMS) berdasarkan silang gred BM dan Sejarah.
+
+Kedua-dua jadual ini akan berubah serentak apabila anda menukar nama sekolah di **Dropdown B1**.
 ## Kredit
 Projek ini direka untuk memudahkan pengurusan data peperiksaan dalaman sekolah menggunakan eksport standard sistem idMe.
 

@@ -257,3 +257,324 @@ driver.quit()
 Gunakan fail **`all_student_results.csv`** ini sebagai sumber data untuk **FASA 1** dalam panduan dashboard di bawah. Copy isinya ke tab **`Data`** di Google Sheet.
 
 *Nota: Struktur lajur mungkin sedikit berbeza dengan fail `fik_...csv` asal (urutan subjek). Pastikan anda menyemak semula Lajur Subjek dalam "Fasa 3: Pemetaan Lajur" jika menggunakan kaedah ini.*
+
+
+
+Kaedah ini jauh lebih **"advance" dan automatik** berbanding kaedah formula Excel biasa. Anda tidak perlu menyalin formula yang panjang atau risau tentang formula rosak. Skrip akan membaca data dari `all_student_results.csv` dan menjana dashboard sepenuhnya.
+
+---
+
+# Bahagian B (Alternatif): Dashboard Automatik dengan Google Apps Script
+
+Kaedah ini menggunakan pengaturcaraan Google Apps Script untuk memproses fail `all_student_results.csv` (yang dihasilkan dari Python) dan membina analisis secara automatik apabila anda memilih nama sekolah.
+
+### Langkah 1: Import Data CSV ke Google Sheets
+
+1.  Buka Google Sheet baharu.
+2.  **Import Data:**
+    *   Klik **File > Import > Upload**.
+    *   Pilih fail `all_student_results.csv` yang dihasilkan oleh Python tadi.
+    *   Pilih **"Replace spreadsheet"** atau **"Insert new sheet"**.
+3.  Pastikan nama Tab (Sheet) tersebut dinamakan sebagai **`Data`**.
+    *   *Semak Header:* Pastikan baris 1 mengandungi header seperti `BC Mark`, `BC Grade`, `BM Grade` dan sebagainya.
+
+### Langkah 2: Masukkan Google Apps Script
+
+1.  Di Google Sheet tersebut, klik menu **Extensions > Apps Script**.
+2.  Padamkan sebarang kod yang ada di dalam `Code.gs`.
+3.  Salin dan tampal kod penuh di bawah:
+
+```javascript
+/**
+ * PENGATURCARAAN ANALISIS IDME (SPPB)
+ * Menggunakan data format: Mark & Grade columns
+ */
+
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('Admin Analisis')
+    .addItem('Jana/Kemaskini Analisis', 'janaAnalisis')
+    .addToUi();
+}
+
+// Trigger automatik apabila Dropdown B1 berubah
+function onEdit(e) {
+  const sheet = e.source.getActiveSheet();
+  const range = e.range;
+  
+  // Jika perubahan berlaku di sheet 'Analisis' pada sel B1
+  if (sheet.getName() === 'Analisis' && range.getA1Notation() === 'B1') {
+    janaAnalisis();
+  }
+}
+
+function janaAnalisis() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const dataSheet = ss.getSheetByName('Data');
+  let analysisSheet = ss.getSheetByName('Analisis');
+
+  // 1. Persediaan Sheet Analisis jika belum wujud
+  if (!analysisSheet) {
+    analysisSheet = ss.insertSheet('Analisis');
+    setupDashboardStructure(analysisSheet, dataSheet);
+    return; // Berhenti untuk user pilih sekolah dulu
+  }
+
+  // 2. Dapatkan Pilihan Sekolah & Data Mentah
+  const selectedSchool = analysisSheet.getRange('B1').getValue();
+  if (!selectedSchool) {
+    Browser.msgBox("Sila pilih Sekolah atau 'SEMUA' di sel B1");
+    return;
+  }
+
+  const rawData = dataSheet.getDataRange().getValues();
+  const headers = rawData[0];
+  
+  // Cari Indeks Lajur Penting
+  const colSekolah = headers.indexOf('Sekolah');
+  
+  // 3. Filter Data Berdasarkan Sekolah
+  let filteredData = rawData.slice(1); // Buang header
+  if (selectedSchool !== 'SEMUA') {
+    filteredData = filteredData.filter(row => row[colSekolah] === selectedSchool);
+  }
+
+  if (filteredData.length === 0) {
+    Browser.msgBox("Tiada data ditemui untuk pilihan ini.");
+    return;
+  }
+
+  // 4. Kenalpasti Subjek (Cari column yang berakhir dengan 'Grade')
+  const subjectMap = [];
+  headers.forEach((header, index) => {
+    if (header.includes(' Grade')) {
+      subjectMap.push({
+        name: header.replace(' Grade', ''), // Cth: "BM Grade" -> "BM"
+        index: index
+      });
+    }
+  });
+
+  // 5. Proses Statistik Utama (Gred, GP, Lulus)
+  // Gred Order: A+, A, A-, B+, B, C+, C, D, E, G, TH
+  // Nilai GP: A+=0, A=1, A-=2, B+=3, B=4, C+=5, C=6, D=7, E=8, G=9
+  const gradeList = ['A+', 'A', 'A-', 'B+', 'B', 'C+', 'C', 'D', 'E', 'G', 'TH'];
+  const gpValues = {'A+':0, 'A':1, 'A-':2, 'B+':3, 'B':4, 'C+':5, 'C':6, 'D':7, 'E':8, 'G':9};
+  
+  let outputTable = [];
+
+  subjectMap.forEach(sub => {
+    let counts = {};
+    gradeList.forEach(g => counts[g] = 0);
+    let totalMurid = 0;
+    let totalGPPoints = 0;
+    let countForGP = 0;
+    let lulusCount = 0;
+
+    filteredData.forEach(row => {
+      let grade = row[sub.index];
+      grade = grade ? grade.toString().trim() : "";
+      
+      if (grade === "") return; // Skip jika tiada data
+      
+      totalMurid++;
+      
+      // Normalise TH
+      if (grade === 'TH' || grade === 'T') {
+        counts['TH']++;
+      } else if (counts.hasOwnProperty(grade)) {
+        counts[grade]++;
+        
+        // Kira Lulus (Semua kecuali G dan TH)
+        if (grade !== 'G') {
+          lulusCount++;
+        }
+
+        // Kira GP
+        if (gpValues.hasOwnProperty(grade)) {
+          totalGPPoints += gpValues[grade];
+          countForGP++;
+        }
+      } else {
+        // Handle Gred pelik jika ada
+        if(grade === 'G') {
+             counts['G']++;
+             totalGPPoints += gpValues['G'];
+             countForGP++;
+        }
+      }
+    });
+
+    // Format Baris untuk Subjek ini
+    let rowData = [sub.name, totalMurid];
+    
+    // Masukkan data bagi setiap gred + peratus
+    gradeList.forEach(g => {
+        if(g === 'TH') return; // TH handle last
+        let count = counts[g];
+        let pct = totalMurid > 0 ? (count / totalMurid) : 0;
+        rowData.push(count, pct);
+    });
+
+    // % Lulus
+    let pctLulus = totalMurid > 0 ? (lulusCount / totalMurid) : 0;
+    rowData.push(pctLulus);
+
+    // TH & % TH
+    let countTH = counts['TH'];
+    let pctTH = totalMurid > 0 ? (countTH / totalMurid) : 0;
+    rowData.push(countTH, pctTH);
+
+    // GP
+    let gp = countForGP > 0 ? (totalGPPoints / countForGP) : 0;
+    rowData.push(gp);
+
+    outputTable.push(rowData);
+  });
+
+  // 6. Tulis Data ke Jadual Utama
+  // Bersihkan kawasan data lama (mula baris 4)
+  if(analysisSheet.getLastRow() > 3){
+    analysisSheet.getRange(4, 1, analysisSheet.getLastRow()-3, 30).clearContent();
+  }
+  
+  if (outputTable.length > 0) {
+    analysisSheet.getRange(4, 1, outputTable.length, outputTable[0].length).setValues(outputTable);
+    // Format Number (Percentage & Decimals)
+    // Adjust range format based on columns
+    // Cth: Col D(%), F(%), H(%), etc.. ini agak rumit nak hardcode format, user boleh format manual sekali.
+  }
+
+  // 7. Analisis LMS (Layak Mendapat Sijil - BM & SEJ)
+  processLMS(analysisSheet, filteredData, headers);
+}
+
+function processLMS(sheet, data, headers) {
+  // Cari index BM dan SEJ
+  // Note: Regex used to find exact "BM Grade" or "SEJ Grade" column
+  const bmIndex = headers.indexOf('BM Grade');
+  const sejIndex = headers.indexOf('SEJ Grade');
+
+  let stats = {
+    lulus_bm_lulus_sej: 0,
+    lulus_bm_gagal_sej: 0,
+    gagal_bm_lulus_sej: 0,
+    gagal_bm_gagal_sej: 0,
+    total: 0
+  };
+
+  if (bmIndex === -1 || sejIndex === -1) {
+    // Jika subjek tiada, biar 0
+  } else {
+    data.forEach(row => {
+      let gBM = row[bmIndex] ? row[bmIndex].toString().trim() : "";
+      let gSEJ = row[sejIndex] ? row[sejIndex].toString().trim() : "";
+
+      if (gBM === "" && gSEJ === "") return; // Skip kosong
+
+      stats.total++;
+
+      // Definisi Lulus: A+, A, A-, B+, B, C+, C, D, E
+      // Definisi Gagal: G, TH
+      const isPass = (g) => /^[A-E]/.test(g); 
+
+      let passBM = isPass(gBM);
+      let passSEJ = isPass(gSEJ);
+
+      if (passBM && passSEJ) stats.lulus_bm_lulus_sej++;
+      else if (passBM && !passSEJ) stats.lulus_bm_gagal_sej++;
+      else if (!passBM && passSEJ) stats.gagal_bm_lulus_sej++;
+      else stats.gagal_bm_gagal_sej++;
+    });
+  }
+
+  // Tulis ke bahagian bawah sheet
+  const startRow = data.length > 20 ? 30 : 30; // Tetapkan lokasi statik atau dynamic
+  
+  const lmsData = [
+    ["ANALISIS LAYAK SIJIL (LMS) - BM & SEJARAH", ""],
+    ["KATEGORI", "BILANGAN"],
+    ["Layak Sijil (Lulus BM & Sejarah)", stats.lulus_bm_lulus_sej],
+    ["Lulus BM, Gagal Sejarah", stats.lulus_bm_gagal_sej],
+    ["Gagal BM, Lulus Sejarah", stats.gagal_bm_lulus_sej],
+    ["Gagal Kedua-dua Subjek", stats.gagal_bm_gagal_sej],
+    ["JUMLAH CALON", stats.total]
+  ];
+
+  const lmsRange = sheet.getRange("F4:G10"); // Letak di sebelah kanan jadual utama (contoh F4)
+  // Atau lebih baik letak di bawah jadual utama secara automatik
+  // Kita letak di Column AD (tepi sekali) atau Row 30
+  
+  // STRATEGI BARU: Letak di Row 30 (Hardcoded for simplicity as requested)
+  sheet.getRange("E26:F32").setValues(lmsData);
+  sheet.getRange("E26:F26").setBackground('#f3f3f3').setFontWeight('bold');
+}
+
+function setupDashboardStructure(sheet, dataSheet) {
+  // Setup Dropdown
+  const schools = getUniqueValues(dataSheet, 'Sekolah');
+  schools.unshift('SEMUA');
+  
+  const rule = SpreadsheetApp.newDataValidation().requireValueInList(schools).build();
+  sheet.getRange('B1').setDataValidation(rule);
+  sheet.getRange('A1').setValue("PILIH SEKOLAH:");
+  sheet.getRange('B1').setValue("SEMUA");
+
+  // Setup Header Utama
+  const header = [
+    "SUBJEK", "JUM", 
+    "A+", "%", "A", "%", "A-", "%", 
+    "B+", "%", "B", "%", "C+", "%", "C", "%", 
+    "D", "%", "E", "%", "G", "%", 
+    "% LULUS", "TH", "%", "GP"
+  ];
+  sheet.getRange(3, 1, 1, header.length).setValues([header]).setFontWeight('bold').setBackground('#cfe2f3');
+  
+  // Trigger analisis pertama kali
+  janaAnalisis();
+}
+
+function getUniqueValues(sheet, colName) {
+  const data = sheet.getDataRange().getValues();
+  const colIndex = data[0].indexOf(colName);
+  if (colIndex === -1) return [];
+  
+  const values = data.slice(1).map(row => row[colIndex]).filter(String);
+  return [...new Set(values)].sort();
+}
+```
+
+4.  Tekan ikon **Save** (💾).
+5.  Tutup tab Apps Script dan kembali ke Google Sheet.
+
+### Langkah 3: Menjana Dashboard Pertama Kali
+
+1.  Muat semula (Refresh) laman Google Sheet anda.
+2.  Anda akan melihat menu baharu di atas bernama **"Admin Analisis"**.
+3.  Klik **Admin Analisis > Jana/Kemaskini Analisis**.
+4.  Skrip akan meminta kebenaran (Permission) pada kali pertama:
+    *   Klik *Continue*.
+    *   Pilih akaun Google anda.
+    *   Klik *Advanced* > *Go to (Nama Skrip) (unsafe)*.
+    *   Klik *Allow*.
+5.  Skrip akan secara automatik:
+    *   Mencipta tab `Analisis`.
+    *   Membuat dropdown Sekolah di sel **B1**.
+    *   Membuat Jadual Header di Baris 3.
+    *   Mengisi data analisis.
+
+### Langkah 4: Penggunaan Harian
+
+Sistem ini kini automatik sepenuhnya.
+
+1.  Pergi ke tab **`Analisis`**.
+2.  Tukar pilihan di sel **B1** (Contoh: Tukar dari `SEMUA` kepada `SMK CONTOH`).
+3.  Tunggu 1-2 saat, data dalam jadual akan berubah secara automatik mengikut sekolah yang dipilih.
+4.  **Analisis LMS (BM & Sejarah)** akan terpapar di bahagian bawah (sekitar sel **E26**).
+
+---
+
+### Kelebihan Kaedah Apps Script:
+1.  **Tidak Perlu Formula Rumit:** Tiada lagi risiko terpadam formula `COUNTIFS` atau `VLOOKUP`.
+2.  **Fleksibel:** Jika ada subjek baharu dalam CSV, skrip akan automatik menambahnya ke dalam senarai tanpa perlu anda ubah apa-apa.
+3.  **LMS Automatik:** Logik lulus/gagal BM & Sejarah dikira di belakang tabir tanpa memerlukan "Helper Column" di tab Data.
